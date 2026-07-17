@@ -4,7 +4,28 @@ import { imageUrlQuality } from "../utils/image.js";
 import { slug } from "../utils/normalize.js";
 import type { AppConfig } from "../utils/config.js";
 import type { History } from "../storage/history.js";
-import type { Product, ScoredProduct } from "../types.js";
+import type { EditorialFormat, Product, ScoredProduct } from "../types.js";
+
+/** Applica i vincoli del formato editoriale (categoria, brand, prezzo). */
+function applyFormatFilter(products: Product[], format: EditorialFormat | undefined): Product[] {
+  if (!format) return products;
+  const s = format.select;
+  let filtered = products;
+  if (s.categories && s.categories.length) {
+    const wanted = new Set(s.categories.map((c) => slug(c)));
+    filtered = filtered.filter((p) => wanted.has(slug(p.category)));
+  }
+  if (s.requireBrand) {
+    filtered = filtered.filter((p) => p.brand && slug(p.brand) !== "jag");
+  }
+  if (typeof s.maxPrice === "number") {
+    filtered = filtered.filter((p) => p.price !== null && p.price <= s.maxPrice!);
+  }
+  if (typeof s.minPrice === "number") {
+    filtered = filtered.filter((p) => p.price !== null && p.price >= s.minPrice!);
+  }
+  return filtered;
+}
 
 /** Penalità [0..1] in base a quanto di recente un valore è stato usato. 1 = mai usato. */
 function varietyScore(value: string, recentValues: string[]): number {
@@ -38,14 +59,27 @@ export function selectProducts(
   products: Product[],
   history: History,
   config: AppConfig,
+  format?: EditorialFormat,
 ): ScoredProduct[] {
   const { weights, recentWindow, candidatePoolSize } = config.settings.selection;
   const publishedIds = history.publishedIds();
 
   // 1. Filtra i prodotti già pubblicati.
-  const available = products.filter((p) => !publishedIds.has(p.id));
+  let available = products.filter((p) => !publishedIds.has(p.id));
   logger.info(`Prodotti disponibili (mai pubblicati): ${available.length} / ${products.length}`);
   if (available.length === 0) return [];
+
+  // 1b. Applica i vincoli del formato editoriale (con fallback se svuota).
+  const constrained = applyFormatFilter(available, format);
+  if (format && constrained.length === 0) {
+    logger.warn(
+      `Nessun prodotto soddisfa i vincoli del formato "${format.label}": uso l'intero catalogo residuo.`,
+    );
+  } else if (format) {
+    logger.info(`Prodotti compatibili col formato "${format.label}": ${constrained.length}`);
+    available = constrained;
+  }
+  const pricePreference = format?.select.pricePreference;
 
   const recent = history.recent(recentWindow);
   const recentBrands = recent.map((r) => slug(r.brand));
@@ -57,6 +91,19 @@ export function selectProducts(
     categoryCounts.set(p.category, (categoryCounts.get(p.category) ?? 0) + 1);
   }
   const maxCount = Math.max(...categoryCounts.values());
+
+  // Intervallo prezzi (per la preferenza di prezzo dei formati es. "Best Value Find").
+  const prices = available.map((p) => p.price).filter((p): p is number => p !== null);
+  const minPrice = prices.length ? Math.min(...prices) : 0;
+  const maxPrice = prices.length ? Math.max(...prices) : 0;
+  const priceRange = maxPrice - minPrice;
+
+  function pricePreferenceScore(price: number | null): number {
+    if (!pricePreference || price === null || priceRange === 0) return 0;
+    const normalized = (price - minPrice) / priceRange; // 0 = più economico, 1 = più caro
+    const favor = pricePreference === "low" ? 1 - normalized : normalized;
+    return favor * 20; // bonus dedicato al formato, oltre ai pesi standard
+  }
 
   const scored: ScoredProduct[] = available.map((product) => {
     const brandVariety = varietyScore(slug(product.brand), recentBrands);
@@ -74,6 +121,7 @@ export function selectProducts(
       priceBand: priceBand * weights.priceBand,
       imageQuality: imageQuality * weights.imageQuality,
       feedBalance: feedBalance * weights.feedBalance,
+      pricePreference: pricePreferenceScore(product.price),
     };
     const score = Object.values(breakdown).reduce((a, b) => a + b, 0);
     return { product, score, breakdown };

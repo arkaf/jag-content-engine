@@ -25,9 +25,10 @@ export interface Settings {
   productId: { strategy: "last-path-segment" | "query-param"; queryParam: string };
   openai: { model: string; temperature: number; maxTokens: number };
   content: {
-    caption: { order: string[]; separator: string; hashtagSeparator: string };
+    caption: { order: string[]; separator: string; hashtagSeparator: string; linkInBio: string };
     hashtags: { min: number; max: number };
   };
+  images: { maxPerPost: number; extractFromProductLink: boolean; cdnHosts: string[] };
   zernio: { baseUrl: string; platform: string; mediaType: string };
   selection: {
     candidatePoolSize: number;
@@ -55,11 +56,31 @@ export interface CategoriesConfig {
   priceBands: { label: string; max: number | null; score: number }[];
 }
 
+export interface FormatDefinition {
+  emoji: string;
+  label: string;
+  brief: string;
+  select: {
+    categories?: string[];
+    requireBrand?: boolean;
+    pricePreference?: "low" | "high";
+    maxPrice?: number;
+    minPrice?: number;
+  };
+}
+
+export interface FormatsConfig {
+  rotation: string[];
+  formats: Record<string, FormatDefinition>;
+  comingSoon?: string[];
+}
+
 export interface AppConfig {
   settings: Settings;
   prompts: PromptsConfig;
   hashtags: HashtagsConfig;
   categories: CategoriesConfig;
+  formats: FormatsConfig;
 }
 
 let cached: AppConfig | null = null;
@@ -71,6 +92,7 @@ export function loadConfig(): AppConfig {
     prompts: loadJson<PromptsConfig>("prompts.json"),
     hashtags: loadJson<HashtagsConfig>("hashtags.json"),
     categories: loadJson<CategoriesConfig>("categories.json"),
+    formats: loadJson<FormatsConfig>("formats.json"),
   };
   return cached;
 }

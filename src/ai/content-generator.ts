@@ -3,7 +3,7 @@ import OpenAI from "openai";
 import { logger } from "../utils/logger.js";
 import { slug } from "../utils/normalize.js";
 import type { AppConfig } from "../utils/config.js";
-import type { GeneratedContent, Product } from "../types.js";
+import type { EditorialFormat, GeneratedContent, Product } from "../types.js";
 
 function fillTemplate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? "");
@@ -41,7 +41,11 @@ function buildHashtags(generated: string[], product: Product, config: AppConfig)
   return result;
 }
 
-export async function generateContent(product: Product, config: AppConfig): Promise<GeneratedContent> {
+export async function generateContent(
+  product: Product,
+  format: EditorialFormat,
+  config: AppConfig,
+): Promise<GeneratedContent> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("Variabile OPENAI_API_KEY mancante.");
 
@@ -50,16 +54,18 @@ export async function generateContent(product: Product, config: AppConfig): Prom
   const { min, max } = config.settings.content.hashtags;
 
   const userPrompt = fillTemplate(config.prompts.user, {
+    formatLabel: format.label,
+    formatBrief: format.brief,
     name: product.name,
     brand: product.brand,
     category: product.category,
-    price: product.price !== null ? `${product.price} €` : product.priceRaw || "n/d",
+    price: product.priceRaw || (product.price !== null ? String(product.price) : "n/a"),
     link: product.link,
     hashtagMin: String(min),
     hashtagMax: String(max),
   });
 
-  logger.info(`Genero i contenuti con OpenAI (${model}) per "${product.name}"`);
+  logger.info(`Genero i contenuti con OpenAI (${model}) per "${product.name}" — formato ${format.label}`);
 
   const completion = await client.chat.completions.create({
     model,
@@ -83,7 +89,6 @@ export async function generateContent(product: Product, config: AppConfig): Prom
   }
 
   const caption = (parsed.caption ?? "").toString().trim();
-  const cta = (parsed.cta ?? "").toString().trim();
   const altText = (parsed.altText ?? "").toString().trim() || `${product.name} - ${product.brand}`;
   const generatedTags = Array.isArray(parsed.hashtags)
     ? (parsed.hashtags as unknown[]).map((t) => String(t))
@@ -93,19 +98,27 @@ export async function generateContent(product: Product, config: AppConfig): Prom
 
   return {
     caption,
-    cta,
     altText,
     hashtags: buildHashtags(generatedTags, product, config),
   };
 }
 
-/** Compone la caption finale (testo + CTA + hashtag) secondo la configurazione. */
-export function composeCaption(content: GeneratedContent, config: AppConfig): string {
-  const { order, separator, hashtagSeparator } = config.settings.content.caption;
+/**
+ * Compone la caption finale secondo l'ordine configurato:
+ * headline del formato · testo · "🔗 link in bio" · hashtag.
+ */
+export function composeCaption(
+  content: GeneratedContent,
+  format: EditorialFormat,
+  config: AppConfig,
+): string {
+  const { order, separator, hashtagSeparator, linkInBio } = config.settings.content.caption;
+  const headline = `${format.emoji} ${format.label}`.trim();
   const parts: string[] = [];
   for (const key of order) {
-    if (key === "caption" && content.caption) parts.push(content.caption);
-    else if (key === "cta" && content.cta) parts.push(content.cta);
+    if (key === "headline" && headline) parts.push(headline);
+    else if (key === "caption" && content.caption) parts.push(content.caption);
+    else if (key === "linkInBio" && linkInBio) parts.push(linkInBio);
     else if (key === "hashtags" && content.hashtags.length) {
       parts.push(content.hashtags.join(hashtagSeparator));
     }

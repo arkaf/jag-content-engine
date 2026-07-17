@@ -1,0 +1,49 @@
+{
+  "rotation": [
+    "product_of_the_day",
+    "todays_pick",
+    "how_to_style_it",
+    "brand_spotlight",
+    "best_value_find",
+    "accessory_of_the_week"
+  ],
+  "formats": {
+    "product_of_the_day": {
+      "emoji": "🖤",
+      "label": "Product of the Day",
+      "brief": "Introduce today's hero piece with a confident, editorial tone. Explain in one or two lines why it stands out.",
+      "select": {}
+    },
+    "todays_pick": {
+      "emoji": "🔥",
+      "label": "Today's Pick",
+      "brief": "A punchy, hype-but-tasteful pick of the day. Keep it short and energetic.",
+      "select": {}
+    },
+    "how_to_style_it": {
+      "emoji": "👕",
+      "label": "How to Style It",
+      "brief": "Give 2-3 concrete styling tips: how to wear this piece and what to pair it with.",
+      "select": { "categories": ["tshirt", "hoodie", "jacket", "pants", "sneakers"] }
+    },
+    "brand_spotlight": {
+      "emoji": "⭐",
+      "label": "Brand Spotlight",
+      "brief": "Put the brand in the spotlight: its aesthetic and why it matters, using this piece as the example.",
+      "select": { "requireBrand": true }
+    },
+    "best_value_find": {
+      "emoji": "💰",
+      "label": "Best Value Find",
+      "brief": "Frame this as a smart, high-value find. Emphasize the quality-to-price ratio without sounding cheap.",
+      "select": { "pricePreference": "low" }
+    },
+    "accessory_of_the_week": {
+      "emoji": "🎒",
+      "label": "Accessory of the Week",
+      "brief": "Highlight this accessory as the detail that completes a fit.",
+      "select": { "categories": ["accessories"] }
+    }
+  },
+  "comingSoon": ["complete_outfit", "reel", "carousel_five"]
+}

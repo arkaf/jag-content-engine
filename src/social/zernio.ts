@@ -133,22 +133,29 @@ export class ZernioClient {
     return url;
   }
 
-  /** Crea e pubblica immediatamente un post foto su Instagram. */
-  async publishPhoto(params: {
+  /**
+   * Crea e pubblica immediatamente un post su Instagram.
+   * Con una sola immagine è un post foto; con più immagini Zernio genera
+   * automaticamente un carosello.
+   */
+  async publishPost(params: {
     caption: string;
-    mediaUrl: string;
+    mediaUrls: string[];
     accountId: string;
     config: AppConfig;
   }): Promise<PublishResult> {
-    const { caption, mediaUrl, accountId, config } = params;
+    const { caption, mediaUrls, accountId, config } = params;
+    if (mediaUrls.length === 0) throw new Error("Nessuna immagine da pubblicare.");
     const payload = {
       content: caption,
-      mediaItems: [{ type: config.settings.zernio.mediaType, url: mediaUrl }],
+      mediaItems: mediaUrls.map((url) => ({ type: config.settings.zernio.mediaType, url })),
       platforms: [{ platform: config.settings.zernio.platform, accountId }],
       publishNow: true,
     };
 
-    logger.info(`Pubblico su Instagram tramite Zernio (account ${accountId})`);
+    logger.info(
+      `Pubblico su Instagram tramite Zernio (account ${accountId}, ${mediaUrls.length} immagine/i)`,
+    );
     const body = await this.request("/posts", {
       method: "POST",
       headers: { ...this.authHeaders(), "Content-Type": "application/json" },

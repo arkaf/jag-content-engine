@@ -16,9 +16,24 @@ export interface Product {
 
 export interface GeneratedContent {
   caption: string;
-  cta: string;
   hashtags: string[];
   altText: string;
+}
+
+export interface FormatSelect {
+  categories?: string[];
+  requireBrand?: boolean;
+  pricePreference?: "low" | "high";
+  maxPrice?: number;
+  minPrice?: number;
+}
+
+export interface EditorialFormat {
+  key: string;
+  emoji: string;
+  label: string;
+  brief: string;
+  select: FormatSelect;
 }
 
 export interface DownloadedImage {
@@ -35,6 +50,8 @@ export interface HistoryRecord {
   category: string;
   price: number | null;
   platform: string;
+  format: string;
+  imagesCount: number;
   permalink: string;
   postId: string | null;
   publishedAt: string;
