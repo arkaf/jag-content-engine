@@ -180,6 +180,9 @@ export class ZernioClient {
     const rec = (body ?? {}) as Record<string, unknown>;
     const permalink = String(rec.permalink ?? rec.url ?? "");
     logger.info(`Post creato su Zernio${postId ? ` (id ${postId})` : ""}.`);
+    // La consegna alle piattaforme e' asincrona lato Zernio: logghiamo la
+    // risposta per avere stato/errori per piattaforma nei log del workflow.
+    logger.info(`Risposta Zernio (${platform}): ${JSON.stringify(body).slice(0, 600)}`);
     return { postId, permalink, accountId, raw: body };
   }
 }
