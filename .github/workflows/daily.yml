@@ -19,6 +19,22 @@ on:
         description: "Esegui in modalità dry-run (nessuna pubblicazione, storico non aggiornato)"
         type: boolean
         default: false
+      product:
+        description: "Prodotto specifico da pubblicare: link, ID o parte del nome. Vuoto = selezione automatica"
+        type: string
+        default: ""
+      format:
+        description: "Formato editoriale del post"
+        type: choice
+        default: "auto"
+        options:
+          - auto
+          - product_of_the_day
+          - todays_pick
+          - how_to_style_it
+          - brand_spotlight
+          - best_value_find
+          - accessory_of_the_week
 
 # Necessario per poter committare l'aggiornamento di data/history.json.
 permissions:
@@ -73,6 +89,8 @@ jobs:
           ZERNIO_INSTAGRAM_ACCOUNT_ID: ${{ secrets.ZERNIO_INSTAGRAM_ACCOUNT_ID }}
           ZERNIO_PINTEREST_ACCOUNT_ID: ${{ secrets.ZERNIO_PINTEREST_ACCOUNT_ID }}
           DRY_RUN: ${{ inputs.dry_run || 'false' }}
+          FORCE_PRODUCT: ${{ inputs.product }}
+          FORCE_FORMAT: ${{ inputs.format }}
           LOG_LEVEL: info
         run: npm start
 

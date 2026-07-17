@@ -8,7 +8,7 @@
  */
 import { loadConfig } from "./utils/config.js";
 import { logger } from "./utils/logger.js";
-import { slug } from "./utils/normalize.js";
+import { extractProductId, slug } from "./utils/normalize.js";
 import { readCatalog } from "./google/sheet.js";
 import { History } from "./storage/history.js";
 import { selectFormat } from "./content/format-selector.js";
@@ -17,7 +17,7 @@ import { generateContent, composeCaption } from "./ai/content-generator.js";
 import { resolveProductImages } from "./media/product-images.js";
 import { downloadImage } from "./utils/image.js";
 import { ZernioClient } from "./social/zernio.js";
-import type { DownloadedImage, Product } from "./types.js";
+import type { DownloadedImage, Product, ScoredProduct } from "./types.js";
 
 const REQUIRED_ENV = [
   "GOOGLE_SERVICE_ACCOUNT",
@@ -63,14 +63,40 @@ async function main(): Promise<void> {
   ]);
   if (products.length === 0) throw new Error("Catalogo vuoto: nessun prodotto da pubblicare.");
 
-  // 2. Formato editoriale del giorno (rotazione)
-  const format = selectFormat(history, config);
+  // 2. Formato editoriale del giorno (rotazione, o forzato da input manuale)
+  const forceFormat = (process.env.FORCE_FORMAT ?? "").trim().toLowerCase();
+  const format = selectFormat(history, config, forceFormat === "auto" ? "" : forceFormat);
 
-  // 3. Selezione candidati coerenti col formato
-  const candidates = selectProducts(products, history, config, format);
-  if (candidates.length === 0) {
-    logger.warn("Tutti i prodotti del catalogo sono già stati pubblicati. Niente da fare oggi.");
-    return;
+  // 3. Selezione candidati: prodotto forzato manualmente oppure scoring.
+  const forceProduct = (process.env.FORCE_PRODUCT ?? "").trim();
+  let candidates: ScoredProduct[];
+  if (forceProduct) {
+    const wanted = slug(forceProduct);
+    const forcedId = extractProductId(forceProduct, config.settings);
+    const found = products.find(
+      (p) =>
+        p.id === forceProduct ||
+        p.link === forceProduct ||
+        p.id === forcedId ||
+        (wanted.length >= 3 && slug(p.name).includes(wanted)),
+    );
+    if (!found) {
+      throw new Error(
+        `Prodotto "${forceProduct}" non trovato nel catalogo. ` +
+          `Puoi indicare il link completo, l'ID oppure una parte del nome.`,
+      );
+    }
+    if (history.publishedIds().has(found.id)) {
+      logger.warn(`"${found.name}" risulta gia' pubblicato: lo ripubblico su richiesta esplicita.`);
+    }
+    logger.info(`Prodotto scelto manualmente: "${found.name}" (${found.brand} / ${found.category})`);
+    candidates = [{ product: found, score: 0, breakdown: {} }];
+  } else {
+    candidates = selectProducts(products, history, config, format);
+    if (candidates.length === 0) {
+      logger.warn("Tutti i prodotti del catalogo sono già stati pubblicati. Niente da fare oggi.");
+      return;
+    }
   }
 
   // 4. Scelgo il primo candidato con almeno un'immagine scaricabile e valida,

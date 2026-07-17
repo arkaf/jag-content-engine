@@ -7,9 +7,22 @@ import type { EditorialFormat } from "../types.js";
 /**
  * Sceglie il prossimo formato ruotando la lista `rotation`: parte dal formato
  * successivo all'ultimo usato nello storico, così il feed alterna i formati.
+ * Se `forcedKey` è valorizzato (esecuzione manuale), usa quel formato.
  */
-export function selectFormat(history: History, config: AppConfig): EditorialFormat {
+export function selectFormat(history: History, config: AppConfig, forcedKey?: string): EditorialFormat {
   const { rotation, formats } = config.formats;
+
+  if (forcedKey) {
+    const def = formats[forcedKey];
+    if (!def) {
+      throw new Error(
+        `Formato "${forcedKey}" inesistente. Disponibili: ${Object.keys(formats).join(", ")}`,
+      );
+    }
+    logger.info(`Formato editoriale forzato manualmente: ${def.emoji} ${def.label}`);
+    return { key: forcedKey, emoji: def.emoji, label: def.label, brief: def.brief, select: def.select ?? {} };
+  }
+
   const valid = rotation.filter((k) => formats[k]);
   if (valid.length === 0) throw new Error("Nessun formato editoriale valido in formats.json.");
 
