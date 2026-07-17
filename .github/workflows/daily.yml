@@ -1,0 +1,61 @@
+name: Daily Content Publish
+
+on:
+  schedule:
+    # Ogni giorno alle 10:00 UTC. Modifica il cron per cambiare l'orario.
+    - cron: "0 10 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Esegui in modalità dry-run (nessuna pubblicazione, storico non aggiornato)"
+        type: boolean
+        default: false
+
+# Necessario per poter committare l'aggiornamento di data/history.json.
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-content-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run content engine
+        env:
+          GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
+          GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+          GOOGLE_SHEET_GID: ${{ secrets.GOOGLE_SHEET_GID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
+          ZERNIO_INSTAGRAM_ACCOUNT_ID: ${{ secrets.ZERNIO_INSTAGRAM_ACCOUNT_ID }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+          LOG_LEVEL: info
+        run: npm start
+
+      - name: Commit updated history
+        if: ${{ inputs.dry_run != true }}
+        run: |
+          if [[ -n "$(git status --porcelain data/history.json)" ]]; then
+            git config user.name "jag-content-bot"
+            git config user.email "actions@github.com"
+            git add data/history.json
+            git commit -m "chore: update publication history [skip ci]"
+            git push
+          else
+            echo "Nessuna modifica allo storico da committare."
+          fi

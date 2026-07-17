@@ -1,0 +1,13 @@
+{
+  "base": ["jag", "jagbest", "streetwear", "fashion", "ootd", "style"],
+  "byCategory": {
+    "sneakers": ["sneakers", "sneakerhead", "kicks", "shoegame", "footwear"],
+    "hoodie": ["hoodie", "hoodies", "streetstyle", "essentials"],
+    "tshirt": ["tshirt", "tee", "basics", "streetstyle"],
+    "jacket": ["jacket", "outerwear", "layering", "aw"],
+    "accessories": ["accessories", "details", "everydaycarry"],
+    "pants": ["pants", "denim", "fit", "streetstyle"],
+    "default": ["outfit", "lookbook", "styleinspo", "fashiondaily"]
+  },
+  "blocklist": ["follow4follow", "like4like", "spam", "cheap"]
+}

@@ -1,0 +1,57 @@
+{
+  "brand": {
+    "name": "JAG",
+    "site": "jag.best",
+    "voice": ["premium", "minimal", "moderno", "fashion", "streetwear"],
+    "language": "it"
+  },
+  "sheet": {
+    "headerDetection": true,
+    "columnSynonyms": {
+      "name": ["nome", "name", "prodotto", "product", "titolo", "title"],
+      "link": ["link", "url", "link prodotto", "product link", "product url", "permalink"],
+      "image": ["immagine", "image", "image url", "url immagine", "img", "foto", "photo", "immagine url"],
+      "price": ["prezzo", "price", "costo"],
+      "category": ["categoria", "category", "cat"],
+      "brand": ["brand", "marca", "marchio"]
+    },
+    "positionalFallback": ["name", "link", "image", "price", "category", "brand"]
+  },
+  "productId": {
+    "strategy": "last-path-segment",
+    "queryParam": "id"
+  },
+  "openai": {
+    "model": "gpt-4o",
+    "temperature": 0.8,
+    "maxTokens": 700
+  },
+  "content": {
+    "caption": {
+      "order": ["caption", "cta", "hashtags"],
+      "separator": "\n\n",
+      "hashtagSeparator": " "
+    },
+    "hashtags": {
+      "min": 8,
+      "max": 20
+    }
+  },
+  "zernio": {
+    "baseUrl": "https://zernio.com/api/v1",
+    "platform": "instagram",
+    "mediaType": "image"
+  },
+  "selection": {
+    "candidatePoolSize": 10,
+    "recentWindow": 15,
+    "weights": {
+      "brandVariety": 25,
+      "categoryVariety": 25,
+      "seasonality": 20,
+      "priceBand": 10,
+      "imageQuality": 15,
+      "feedBalance": 5
+    }
+  }
+}

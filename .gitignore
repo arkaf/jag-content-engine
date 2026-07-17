@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+.DS_Store
+
+# Credenziali locali del service account (mai committare)
+service-account*.json
+google-credentials*.json
+
+# Immagini scaricate temporaneamente durante l'esecuzione
+tmp/
+.cache/

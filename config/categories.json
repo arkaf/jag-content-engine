@@ -1,0 +1,31 @@
+{
+  "aliases": {
+    "sneakers": ["sneaker", "scarpe", "shoes", "footwear", "calzature"],
+    "hoodie": ["felpa", "felpe", "hoodies", "sweatshirt"],
+    "tshirt": ["t-shirt", "tee", "maglietta", "magliette", "shirt"],
+    "jacket": ["giacca", "giacche", "outerwear", "cappotto", "coat"],
+    "pants": ["pantaloni", "jeans", "denim", "trousers"],
+    "accessories": ["accessori", "accessory", "cappello", "hat", "bag", "borsa", "belt"]
+  },
+  "seasonality": {
+    "1":  { "jacket": 1.0, "hoodie": 0.9, "sneakers": 0.6, "pants": 0.7, "tshirt": 0.3, "accessories": 0.6 },
+    "2":  { "jacket": 0.9, "hoodie": 0.9, "sneakers": 0.6, "pants": 0.7, "tshirt": 0.3, "accessories": 0.6 },
+    "3":  { "jacket": 0.7, "hoodie": 0.7, "sneakers": 0.8, "pants": 0.6, "tshirt": 0.6, "accessories": 0.6 },
+    "4":  { "jacket": 0.5, "hoodie": 0.6, "sneakers": 0.9, "pants": 0.5, "tshirt": 0.8, "accessories": 0.6 },
+    "5":  { "jacket": 0.3, "hoodie": 0.4, "sneakers": 1.0, "pants": 0.4, "tshirt": 0.9, "accessories": 0.7 },
+    "6":  { "jacket": 0.2, "hoodie": 0.3, "sneakers": 1.0, "pants": 0.3, "tshirt": 1.0, "accessories": 0.8 },
+    "7":  { "jacket": 0.2, "hoodie": 0.3, "sneakers": 1.0, "pants": 0.3, "tshirt": 1.0, "accessories": 0.8 },
+    "8":  { "jacket": 0.3, "hoodie": 0.4, "sneakers": 0.9, "pants": 0.4, "tshirt": 0.9, "accessories": 0.7 },
+    "9":  { "jacket": 0.6, "hoodie": 0.7, "sneakers": 0.8, "pants": 0.6, "tshirt": 0.6, "accessories": 0.6 },
+    "10": { "jacket": 0.8, "hoodie": 0.9, "sneakers": 0.7, "pants": 0.7, "tshirt": 0.4, "accessories": 0.6 },
+    "11": { "jacket": 1.0, "hoodie": 0.9, "sneakers": 0.6, "pants": 0.8, "tshirt": 0.3, "accessories": 0.6 },
+    "12": { "jacket": 1.0, "hoodie": 0.9, "sneakers": 0.6, "pants": 0.8, "tshirt": 0.3, "accessories": 0.7 }
+  },
+  "defaultSeasonality": 0.6,
+  "priceBands": [
+    { "label": "entry", "max": 50, "score": 0.7 },
+    { "label": "mid", "max": 150, "score": 1.0 },
+    { "label": "premium", "max": 400, "score": 0.9 },
+    { "label": "luxury", "max": null, "score": 0.8 }
+  ]
+}
