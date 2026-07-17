@@ -14,7 +14,8 @@
   },
   "dependencies": {
     "googleapis": "^144.0.0",
-    "openai": "^4.77.0"
+    "openai": "^4.77.0",
+    "sharp": "^0.35.3"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

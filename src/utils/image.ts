@@ -1,9 +1,13 @@
-/** Download e validazione delle immagini prodotto. */
+/** Download, validazione e normalizzazione delle immagini prodotto per Instagram. */
 import { basename } from "node:path";
+import sharp from "sharp";
 import { logger } from "./logger.js";
 import type { DownloadedImage } from "../types.js";
 
 const MAX_BYTES = 8 * 1024 * 1024; // limite Instagram per le immagini via Zernio
+
+/** Instagram accetta solo JPG e PNG: tutto il resto va convertito. */
+const INSTAGRAM_FORMATS = new Set(["image/jpeg", "image/png"]);
 
 const EXT_BY_MIME: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -26,7 +30,43 @@ function deriveFilename(url: string, contentType: string): string {
   return `${name}.${ext}`;
 }
 
-/** Scarica un'immagine e la valida per la pubblicazione. Lancia un errore se non valida. */
+/**
+ * Converte l'immagine in un formato accettato da Instagram (JPEG) quando serve:
+ * - formato non supportato (webp, avif, gif, ...) -> JPEG
+ * - dimensione oltre il limite -> ridimensiona e ricomprime in JPEG
+ * Le trasparenze vengono appiattite su sfondo bianco (JPEG non ha alpha).
+ */
+export async function normalizeForInstagram(
+  buffer: Buffer,
+  contentType: string,
+  filename: string,
+): Promise<{ buffer: Buffer; contentType: string; filename: string }> {
+  const needsConversion = !INSTAGRAM_FORMATS.has(contentType);
+  const tooBig = buffer.byteLength > MAX_BYTES;
+  if (!needsConversion && !tooBig) return { buffer, contentType, filename };
+
+  logger.info(
+    `Normalizzo immagine per Instagram (${contentType}, ${(buffer.byteLength / 1024).toFixed(0)}KB)` +
+      `${needsConversion ? " [conversione formato]" : ""}${tooBig ? " [riduzione peso]" : ""}`,
+  );
+
+  let pipeline = sharp(buffer).rotate().flatten({ background: "#ffffff" });
+  if (tooBig) {
+    pipeline = pipeline.resize({ width: 1920, height: 1920, fit: "inside", withoutEnlargement: true });
+  }
+  const converted = await pipeline.jpeg({ quality: 88, mozjpeg: true }).toBuffer();
+
+  if (converted.byteLength > MAX_BYTES) {
+    throw new Error(
+      `Immagine ancora troppo grande dopo la conversione (${(converted.byteLength / 1024 / 1024).toFixed(1)}MB).`,
+    );
+  }
+
+  const newFilename = filename.replace(/\.[a-z0-9]+$/i, "") + ".jpg";
+  return { buffer: converted, contentType: "image/jpeg", filename: newFilename };
+}
+
+/** Scarica un'immagine, la valida e la normalizza per la pubblicazione. */
 export async function downloadImage(url: string): Promise<DownloadedImage> {
   logger.debug(`Scarico immagine: ${url}`);
   const res = await fetch(url, { redirect: "follow" });
@@ -39,21 +79,18 @@ export async function downloadImage(url: string): Promise<DownloadedImage> {
     throw new Error(`Il contenuto scaricato non è un'immagine (content-type: ${contentType})`);
   }
 
-  const buffer = Buffer.from(await res.arrayBuffer());
-  if (buffer.byteLength === 0) {
+  const raw = Buffer.from(await res.arrayBuffer());
+  if (raw.byteLength === 0) {
     throw new Error(`Immagine vuota: ${url}`);
   }
-  if (buffer.byteLength > MAX_BYTES) {
-    throw new Error(
-      `Immagine troppo grande (${(buffer.byteLength / 1024 / 1024).toFixed(1)}MB, max 8MB): ${url}`,
-    );
-  }
+
+  const normalized = await normalizeForInstagram(raw, contentType, deriveFilename(url, contentType));
 
   return {
-    buffer,
-    contentType,
-    filename: deriveFilename(url, contentType),
-    sizeBytes: buffer.byteLength,
+    buffer: normalized.buffer,
+    contentType: normalized.contentType,
+    filename: normalized.filename,
+    sizeBytes: normalized.buffer.byteLength,
   };
 }
 
