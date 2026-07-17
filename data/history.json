@@ -1,4 +1,16 @@
 {
   "version": 1,
-  "published": []
+  "published": [
+    {
+      "id": "product",
+      "name": "Beach Wading All-match Sports Wear Slippers Slippers FV8425",
+      "brand": "JAG",
+      "category": "sneakers",
+      "price": 115,
+      "platform": "instagram",
+      "permalink": "",
+      "postId": null,
+      "publishedAt": "2026-07-17T16:24:28.740Z"
+    }
+  ]
 }
