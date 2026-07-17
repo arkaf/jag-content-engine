@@ -2,8 +2,12 @@ name: Daily Content Publish
 
 on:
   schedule:
-    # Ogni giorno alle 10:00 UTC. Modifica il cron per cambiare l'orario.
-    - cron: "0 10 * * *"
+    # GitHub Actions usa SEMPRE UTC e non gestisce l'ora legale.
+    # Per pubblicare alle 10:00 di New York tutto l'anno lanciamo a entrambe
+    # le ore UTC possibili (14:00 in ora legale EDT, 15:00 in ora solare EST)
+    # e lasciamo che lo step "guard" faccia proseguire solo alle 10:00 di NY.
+    - cron: "0 14 * * *"
+    - cron: "0 15 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -26,16 +30,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Sulle esecuzioni schedulate procede solo se a New York sono le 10:00.
+      # Sulle esecuzioni manuali (workflow_dispatch) non gira e non blocca nulla.
+      - name: Guard 10:00 America/New_York
+        if: ${{ github.event_name == 'schedule' }}
+        run: |
+          HOUR=$(TZ=America/New_York date +%H)
+          echo "Ora attuale a New York: ${HOUR}:00"
+          if [ "$HOUR" != "10" ]; then
+            echo "Non sono le 10:00 a New York: salto questa esecuzione."
+            echo "SKIP=true" >> "$GITHUB_ENV"
+          fi
+
       - name: Setup Node.js
+        if: ${{ env.SKIP != 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
 
       - name: Install dependencies
+        if: ${{ env.SKIP != 'true' }}
         run: npm ci
 
       - name: Run content engine
+        if: ${{ env.SKIP != 'true' }}
         env:
           GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
           GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
@@ -48,7 +67,7 @@ jobs:
         run: npm start
 
       - name: Commit updated history
-        if: ${{ inputs.dry_run != true }}
+        if: ${{ env.SKIP != 'true' && inputs.dry_run != true }}
         run: |
           if [[ -n "$(git status --porcelain data/history.json)" ]]; then
             git config user.name "jag-content-bot"
