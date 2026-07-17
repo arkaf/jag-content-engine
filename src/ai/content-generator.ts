@@ -96,9 +96,16 @@ export async function generateContent(
 
   if (!caption) throw new Error("OpenAI non ha prodotto una caption utilizzabile.");
 
+  // Campi Pinterest con fallback: titolo dal nome prodotto, descrizione dalla caption.
+  const pinTitle = ((parsed.pinTitle ?? "").toString().trim() || `${product.name} — ${product.brand}`)
+    .slice(0, 100);
+  const pinDescription = (parsed.pinDescription ?? "").toString().trim() || caption;
+
   return {
     caption,
     altText,
+    pinTitle,
+    pinDescription,
     hashtags: buildHashtags(generatedTags, product, config),
   };
 }

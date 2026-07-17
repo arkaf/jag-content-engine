@@ -47,7 +47,7 @@ check("selection sorted desc", allRanked[0].score >= allRanked[allRanked.length 
 
 // --- caption ---
 const caption = composeCaption(
-  { caption: "A piece that speaks for itself.", hashtags: ["#jag", "#streetwear"], altText: "alt" },
+  { caption: "A piece that speaks for itself.", hashtags: ["#jag", "#streetwear"], altText: "alt", pinTitle: "Grailz Woven Cap — Streetwear Accessory", pinDescription: "Premium woven cap." },
   format,
   config,
 );

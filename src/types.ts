@@ -18,6 +18,10 @@ export interface GeneratedContent {
   caption: string;
   hashtags: string[];
   altText: string;
+  /** Titolo del pin Pinterest (max 100 caratteri, keyword-rich). */
+  pinTitle: string;
+  /** Descrizione del pin Pinterest, scritta per la ricerca. */
+  pinDescription: string;
 }
 
 export interface FormatSelect {

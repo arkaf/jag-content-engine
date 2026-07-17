@@ -30,6 +30,12 @@ export interface Settings {
   };
   images: { maxPerPost: number; extractFromProductLink: boolean; cdnHosts: string[] };
   zernio: { baseUrl: string; platform: string; mediaType: string };
+  pinterest: {
+    enabled: boolean;
+    platform: string;
+    defaultBoardId: string;
+    boardByCategory: Record<string, string>;
+  };
   selection: {
     candidatePoolSize: number;
     recentWindow: number;

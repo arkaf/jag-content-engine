@@ -86,31 +86,36 @@ export class ZernioClient {
     });
   }
 
-  /** Determina l'account Instagram da usare (da env o rilevato automaticamente). */
-  async resolveInstagramAccountId(config: AppConfig): Promise<string> {
-    const fromEnv = process.env.ZERNIO_INSTAGRAM_ACCOUNT_ID;
+  /**
+   * Determina l'account da usare per una piattaforma: prima la variabile
+   * d'ambiente dedicata (es. ZERNIO_INSTAGRAM_ACCOUNT_ID), altrimenti il
+   * primo account collegato di quella piattaforma.
+   */
+  async resolveAccountId(platform: string): Promise<string> {
+    const envVar = `ZERNIO_${platform.toUpperCase()}_ACCOUNT_ID`;
+    const fromEnv = process.env[envVar];
     if (fromEnv) {
-      logger.info(`Account Instagram da ZERNIO_INSTAGRAM_ACCOUNT_ID: ${fromEnv}`);
+      logger.info(`Account ${platform} da ${envVar}: ${fromEnv}`);
       return fromEnv;
     }
     const accounts = await this.listAccounts();
-    const platform = config.settings.zernio.platform.toLowerCase();
-    const ig = accounts.filter((a) => a.platform === platform && a.id);
-    if (ig.length === 0) {
+    const wanted = platform.toLowerCase();
+    const matches = accounts.filter((a) => a.platform === wanted && a.id);
+    if (matches.length === 0) {
       throw new Error(
-        `Nessun account "${platform}" collegato su Zernio. ` +
+        `Nessun account "${wanted}" collegato su Zernio. ` +
           `Account trovati: ${accounts.map((a) => `${a.platform}:${a.id}`).join(", ") || "nessuno"}. ` +
-          `Collega l'account su Zernio oppure imposta ZERNIO_INSTAGRAM_ACCOUNT_ID.`,
+          `Collega l'account su Zernio oppure imposta ${envVar}.`,
       );
     }
-    if (ig.length > 1) {
+    if (matches.length > 1) {
       logger.warn(
-        `Trovati ${ig.length} account Instagram, uso il primo (${ig[0].username ?? ig[0].id}). ` +
-          `Imposta ZERNIO_INSTAGRAM_ACCOUNT_ID per sceglierne uno specifico.`,
+        `Trovati ${matches.length} account ${wanted}, uso il primo (${matches[0].username ?? matches[0].id}). ` +
+          `Imposta ${envVar} per sceglierne uno specifico.`,
       );
     }
-    logger.info(`Account Instagram rilevato: ${ig[0].username ?? ig[0].id} (${ig[0].id})`);
-    return ig[0].id;
+    logger.info(`Account ${wanted} rilevato: ${matches[0].username ?? matches[0].id} (${matches[0].id})`);
+    return matches[0].id;
   }
 
   /** Carica un'immagine e restituisce l'URL pubblico da usare nel post. */
@@ -134,27 +139,36 @@ export class ZernioClient {
   }
 
   /**
-   * Crea e pubblica immediatamente un post su Instagram.
-   * Con una sola immagine è un post foto; con più immagini Zernio genera
-   * automaticamente un carosello.
+   * Crea e pubblica immediatamente un post sulla piattaforma indicata.
+   * Con una sola immagine è un post foto; con più immagini (su Instagram)
+   * Zernio genera automaticamente un carosello. `platformSpecificData`
+   * trasporta i campi specifici (es. title/boardId/link per Pinterest).
    */
   async publishPost(params: {
     caption: string;
     mediaUrls: string[];
+    platform: string;
     accountId: string;
+    platformSpecificData?: Record<string, unknown>;
     config: AppConfig;
   }): Promise<PublishResult> {
-    const { caption, mediaUrls, accountId, config } = params;
+    const { caption, mediaUrls, platform, accountId, platformSpecificData, config } = params;
     if (mediaUrls.length === 0) throw new Error("Nessuna immagine da pubblicare.");
     const payload = {
       content: caption,
       mediaItems: mediaUrls.map((url) => ({ type: config.settings.zernio.mediaType, url })),
-      platforms: [{ platform: config.settings.zernio.platform, accountId }],
+      platforms: [
+        {
+          platform,
+          accountId,
+          ...(platformSpecificData ? { platformSpecificData } : {}),
+        },
+      ],
       publishNow: true,
     };
 
     logger.info(
-      `Pubblico su Instagram tramite Zernio (account ${accountId}, ${mediaUrls.length} immagine/i)`,
+      `Pubblico su ${platform} tramite Zernio (account ${accountId}, ${mediaUrls.length} immagine/i)`,
     );
     const body = await this.request("/posts", {
       method: "POST",

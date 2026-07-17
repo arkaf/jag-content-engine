@@ -48,6 +48,12 @@
     "platform": "instagram",
     "mediaType": "image"
   },
+  "pinterest": {
+    "enabled": true,
+    "platform": "pinterest",
+    "defaultBoardId": "",
+    "boardByCategory": {}
+  },
   "selection": {
     "candidatePoolSize": 10,
     "recentWindow": 15,

@@ -108,8 +108,9 @@ async function main(): Promise<void> {
   }
 
   // 7. Pubblicazione su Instagram tramite Zernio (carica tutte le immagini).
+  const igPlatform = config.settings.zernio.platform;
   const zernio = new ZernioClient(config);
-  const accountId = await zernio.resolveInstagramAccountId(config);
+  const accountId = await zernio.resolveAccountId(igPlatform);
   const mediaUrls: string[] = [];
   for (const image of images) {
     mediaUrls.push(await zernio.uploadMedia(image));
@@ -118,17 +119,50 @@ async function main(): Promise<void> {
   let result;
   let publishedCount = mediaUrls.length;
   try {
-    result = await zernio.publishPost({ caption, mediaUrls, accountId, config });
+    result = await zernio.publishPost({ caption, mediaUrls, platform: igPlatform, accountId, config });
   } catch (err) {
     if (mediaUrls.length > 1) {
       logger.warn(
         `Pubblicazione carosello fallita (${(err as Error).message}). ` +
           `Riprovo con la sola immagine principale.`,
       );
-      result = await zernio.publishPost({ caption, mediaUrls: [mediaUrls[0]], accountId, config });
+      result = await zernio.publishPost({
+        caption,
+        mediaUrls: [mediaUrls[0]],
+        platform: igPlatform,
+        accountId,
+        config,
+      });
       publishedCount = 1;
     } else {
       throw err;
+    }
+  }
+  const publishedPlatforms = [igPlatform];
+
+  // 7b. Pinterest (best-effort): pin con titolo/descrizione dedicati e link
+  //     diretto al prodotto. Un errore qui non blocca la pubblicazione IG.
+  const pin = config.settings.pinterest;
+  if (pin.enabled) {
+    try {
+      const pinAccountId = await zernio.resolveAccountId(pin.platform);
+      const boardId = pin.boardByCategory[chosen.category] || pin.defaultBoardId;
+      await zernio.publishPost({
+        caption: content.pinDescription,
+        mediaUrls: [mediaUrls[0]],
+        platform: pin.platform,
+        accountId: pinAccountId,
+        platformSpecificData: {
+          title: content.pinTitle,
+          link: chosen.link,
+          ...(boardId ? { boardId } : {}),
+        },
+        config,
+      });
+      publishedPlatforms.push(pin.platform);
+      logger.info(`Pin pubblicato su Pinterest: "${content.pinTitle}"`);
+    } catch (err) {
+      logger.warn(`Pubblicazione Pinterest fallita (post Instagram gia' uscito): ${(err as Error).message}`);
     }
   }
 
@@ -139,7 +173,7 @@ async function main(): Promise<void> {
     brand: chosen.brand,
     category: chosen.category,
     price: chosen.price,
-    platform: config.settings.zernio.platform,
+    platform: publishedPlatforms.join(","),
     format: format.key,
     imagesCount: publishedCount,
     permalink: result.permalink,
@@ -150,7 +184,7 @@ async function main(): Promise<void> {
 
   logger.info(
     `=== Pubblicazione completata: "${chosen.name}" [${format.label}] ` +
-      `su ${config.settings.zernio.platform} (${publishedCount} immagine/i) ===`,
+      `su ${publishedPlatforms.join(" + ")} (${publishedCount} immagine/i) ===`,
   );
 }
 

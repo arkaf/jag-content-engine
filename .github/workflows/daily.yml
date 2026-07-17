@@ -71,6 +71,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
           ZERNIO_INSTAGRAM_ACCOUNT_ID: ${{ secrets.ZERNIO_INSTAGRAM_ACCOUNT_ID }}
+          ZERNIO_PINTEREST_ACCOUNT_ID: ${{ secrets.ZERNIO_PINTEREST_ACCOUNT_ID }}
           DRY_RUN: ${{ inputs.dry_run || 'false' }}
           LOG_LEVEL: info
         run: npm start
