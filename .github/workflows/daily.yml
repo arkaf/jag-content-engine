@@ -3,11 +3,16 @@ name: Daily Content Publish
 on:
   schedule:
     # GitHub Actions usa SEMPRE UTC e non gestisce l'ora legale.
-    # Per pubblicare alle 10:00 di New York tutto l'anno lanciamo a entrambe
-    # le ore UTC possibili (14:00 in ora legale EDT, 15:00 in ora solare EST)
-    # e lasciamo che lo step "guard" faccia proseguire solo alle 10:00 di NY.
-    - cron: "0 14 * * *"
-    - cron: "0 15 * * *"
+    # Pubblichiamo 3 volte al giorno nei picchi di engagement USA:
+    # 9:00, 12:00 e 19:00 America/New_York. Per ogni orario lanciamo a
+    # entrambe le ore UTC possibili (EDT = UTC-4, EST = UTC-5) e lo step
+    # "guard" fa proseguire solo quando a New York e' l'ora giusta.
+    - cron: "0 13 * * *" # 9:00 NY in ora legale (EDT)
+    - cron: "0 14 * * *" # 9:00 NY in ora solare (EST)
+    - cron: "0 16 * * *" # 12:00 NY in ora legale (EDT)
+    - cron: "0 17 * * *" # 12:00 NY in ora solare (EST)
+    - cron: "0 23 * * *" # 19:00 NY in ora legale (EDT)
+    - cron: "0 0 * * *"  # 19:00 NY in ora solare (EST)
   workflow_dispatch:
     inputs:
       dry_run:
@@ -30,17 +35,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Sulle esecuzioni schedulate procede solo se a New York sono le 10:00.
-      # Sulle esecuzioni manuali (workflow_dispatch) non gira e non blocca nulla.
-      - name: Guard 10:00 America/New_York
+      # Sulle esecuzioni schedulate procede solo negli orari di punta di
+      # New York (9:00, 12:00, 19:00). Sulle esecuzioni manuali
+      # (workflow_dispatch) non gira e non blocca nulla.
+      - name: Guard orari di punta America/New_York
         if: ${{ github.event_name == 'schedule' }}
         run: |
           HOUR=$(TZ=America/New_York date +%H)
           echo "Ora attuale a New York: ${HOUR}:00"
-          if [ "$HOUR" != "10" ]; then
-            echo "Non sono le 10:00 a New York: salto questa esecuzione."
-            echo "SKIP=true" >> "$GITHUB_ENV"
-          fi
+          case "$HOUR" in
+            09|12|19)
+              echo "Orario di punta: procedo con la pubblicazione." ;;
+            *)
+              echo "Non e' un orario di punta a New York: salto questa esecuzione."
+              echo "SKIP=true" >> "$GITHUB_ENV" ;;
+          esac
 
       - name: Setup Node.js
         if: ${{ env.SKIP != 'true' }}
