@@ -3,7 +3,13 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { logger } from "../utils/logger.js";
+import { slug } from "../utils/normalize.js";
 import type { HistoryFile, HistoryRecord } from "../types.js";
+
+/** Normalizza un nome prodotto per il confronto (dedup di sicurezza). */
+export function normalizeName(name: string): string {
+  return slug(name ?? "");
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, "..", "..", "data");
@@ -39,6 +45,11 @@ export class History {
   /** Insieme degli ID già pubblicati. */
   publishedIds(): Set<string> {
     return new Set(this.data.published.map((r) => r.id));
+  }
+
+  /** Insieme dei nomi già pubblicati (normalizzati), dedup di sicurezza oltre all'ID. */
+  publishedNames(): Set<string> {
+    return new Set(this.data.published.map((r) => normalizeName(r.name)));
   }
 
   /** Ultimi N record pubblicati, dal più recente. */

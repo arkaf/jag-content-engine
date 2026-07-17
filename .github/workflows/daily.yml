@@ -69,12 +69,25 @@ jobs:
       - name: Commit updated history
         if: ${{ env.SKIP != 'true' && inputs.dry_run != true }}
         run: |
-          if [[ -n "$(git status --porcelain data/history.json)" ]]; then
-            git config user.name "jag-content-bot"
-            git config user.email "actions@github.com"
-            git add data/history.json
-            git commit -m "chore: update publication history [skip ci]"
-            git push
-          else
+          if [[ -z "$(git status --porcelain data/history.json)" ]]; then
             echo "Nessuna modifica allo storico da committare."
+            exit 0
           fi
+          git config user.name "jag-content-bot"
+          git config user.email "actions@github.com"
+          branch="${GITHUB_REF_NAME}"
+          git add data/history.json
+          git commit -m "chore: update publication history [skip ci]"
+          # Push resiliente: se il branch remoto è avanzato, riallinea e riprova.
+          for attempt in 1 2 3 4 5; do
+            if git push origin "HEAD:${branch}"; then
+              echo "Storico aggiornato (tentativo ${attempt})."
+              exit 0
+            fi
+            echo "Push respinto: riallineo a origin/${branch} e riprovo..."
+            git fetch origin "${branch}"
+            git rebase "origin/${branch}" || git rebase --abort
+            sleep 2
+          done
+          echo "::error::Impossibile salvare lo storico dopo diversi tentativi."
+          exit 1

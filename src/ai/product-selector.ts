@@ -63,9 +63,12 @@ export function selectProducts(
 ): ScoredProduct[] {
   const { weights, recentWindow, candidatePoolSize } = config.settings.selection;
   const publishedIds = history.publishedIds();
+  const publishedNames = history.publishedNames();
 
-  // 1. Filtra i prodotti già pubblicati.
-  let available = products.filter((p) => !publishedIds.has(p.id));
+  // 1. Filtra i prodotti già pubblicati (per ID e, di sicurezza, per nome).
+  let available = products.filter(
+    (p) => !publishedIds.has(p.id) && !publishedNames.has(slug(p.name)),
+  );
   logger.info(`Prodotti disponibili (mai pubblicati): ${available.length} / ${products.length}`);
   if (available.length === 0) return [];
 
