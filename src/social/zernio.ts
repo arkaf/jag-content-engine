@@ -18,6 +18,11 @@ export interface PublishResult {
   raw: unknown;
 }
 
+export interface PinterestBoard {
+  id: string;
+  name: string;
+}
+
 export class ZernioClient {
   private readonly baseUrl: string;
   private readonly apiKey: string;
@@ -51,7 +56,7 @@ export class ZernioClient {
   private static asArray(body: unknown): unknown[] {
     if (Array.isArray(body)) return body;
     if (body && typeof body === "object") {
-      for (const key of ["data", "accounts", "items", "results"]) {
+      for (const key of ["data", "accounts", "items", "results", "boards"]) {
         const value = (body as Record<string, unknown>)[key];
         if (Array.isArray(value)) return value;
       }
@@ -116,6 +121,23 @@ export class ZernioClient {
     }
     logger.info(`Account ${wanted} rilevato: ${matches[0].username ?? matches[0].id} (${matches[0].id})`);
     return matches[0].id;
+  }
+
+  /** Elenca le board Pinterest dell'account collegato. */
+  async listPinterestBoards(accountId: string): Promise<PinterestBoard[]> {
+    const body = await this.request(`/accounts/${accountId}/pinterest-boards`, {
+      method: "GET",
+      headers: this.authHeaders(),
+    });
+    return ZernioClient.asArray(body)
+      .map((b) => {
+        const rec = b as Record<string, unknown>;
+        return {
+          id: String(rec.id ?? rec._id ?? rec.boardId ?? ""),
+          name: String(rec.name ?? rec.title ?? ""),
+        };
+      })
+      .filter((b) => b.id);
   }
 
   /** Carica un'immagine e restituisce l'URL pubblico da usare nel post. */

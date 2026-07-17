@@ -8,6 +8,7 @@
  */
 import { loadConfig } from "./utils/config.js";
 import { logger } from "./utils/logger.js";
+import { slug } from "./utils/normalize.js";
 import { readCatalog } from "./google/sheet.js";
 import { History } from "./storage/history.js";
 import { selectFormat } from "./content/format-selector.js";
@@ -146,7 +147,29 @@ async function main(): Promise<void> {
   if (pin.enabled) {
     try {
       const pinAccountId = await zernio.resolveAccountId(pin.platform);
-      const boardId = pin.boardByCategory[chosen.category] || pin.defaultBoardId;
+
+      // Il boardId e' OBBLIGATORIO per Pinterest: prima la config, poi le
+      // board reali dell'account (match per nome di categoria, altrimenti
+      // la prima disponibile).
+      let boardId = pin.boardByCategory[chosen.category] || pin.defaultBoardId;
+      if (!boardId) {
+        const boards = await zernio.listPinterestBoards(pinAccountId);
+        if (boards.length === 0) {
+          throw new Error(
+            "Il profilo Pinterest non ha nessuna board: creane una (es. \"JAG Finds\") " +
+              "e i pin partiranno automaticamente dal prossimo run.",
+          );
+        }
+        const catSlug = slug(chosen.category);
+        const match = boards.find((b) => slug(b.name).includes(catSlug));
+        const board = match ?? boards[0];
+        boardId = board.id;
+        logger.info(
+          `Board Pinterest scelta: "${board.name}" (${board.id})` +
+            `${match ? " [match categoria]" : " [prima disponibile]"}`,
+        );
+      }
+
       await zernio.publishPost({
         caption: content.pinDescription,
         mediaUrls: [mediaUrls[0]],
@@ -155,7 +178,7 @@ async function main(): Promise<void> {
         platformSpecificData: {
           title: content.pinTitle,
           link: chosen.link,
-          ...(boardId ? { boardId } : {}),
+          boardId,
         },
         config,
       });
