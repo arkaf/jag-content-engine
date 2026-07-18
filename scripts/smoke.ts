@@ -3,7 +3,7 @@ import { loadConfig } from "../src/utils/config.js";
 import { extractProductId, parsePrice, normalizeCategory, slug } from "../src/utils/normalize.js";
 import { imageUrlQuality } from "../src/utils/image.js";
 import { selectProducts } from "../src/ai/product-selector.js";
-import { composeCaption } from "../src/ai/content-generator.js";
+import { composeCaption, buildHashtags } from "../src/ai/content-generator.js";
 import { selectFormat } from "../src/content/format-selector.js";
 import { History } from "../src/storage/history.js";
 import type { Product } from "../src/types.js";
@@ -55,6 +55,14 @@ check("caption has headline", caption.startsWith(format.emoji));
 check("caption has link in bio", caption.includes("🔗 link in bio"));
 check("caption has hashtags", caption.includes("#jag"));
 console.log("\nCaption preview:\n" + caption);
+
+// --- hashtags: i tag mulebuy chiudono sempre la lista entro il limite max ---
+const manyGenerated = Array.from({ length: 30 }, (_, i) => `generatedtag${i}`);
+const tags = buildHashtags(manyGenerated, products[0], config);
+const maxTags = config.settings.content.hashtags.max;
+check("hashtags within max", tags.length <= maxTags, tags.length);
+check("hashtags end with mulebuy tags", tags[tags.length - 6] === "#mulebuy" && tags[tags.length - 1] === "#taobao", tags.slice(-6).join(" "));
+check("no duplicates", new Set(tags).size === tags.length);
 
 console.log(`\n${failures === 0 ? "ALL PASS" : failures + " FAILURES"}`);
 process.exit(failures === 0 ? 0 : 1);

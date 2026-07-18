@@ -1,5 +1,6 @@
 {
   "base": ["jag", "jagbest", "streetwear", "fashion", "ootd", "style"],
+  "trailing": ["mulebuy", "mulebuyfinds", "mulebuyhaul", "haul", "taobaofinds", "taobao"],
   "byCategory": {
     "sneakers": ["sneakers", "sneakerhead", "kicks", "shoegame", "footwear"],
     "hoodie": ["hoodie", "hoodies", "streetstyle", "essentials"],

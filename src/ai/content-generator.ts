@@ -9,32 +9,40 @@ function fillTemplate(template: string, vars: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? "");
 }
 
-/** Pulisce, deduplica e limita gli hashtag combinando quelli generati con quelli di config. */
-function buildHashtags(generated: string[], product: Product, config: AppConfig): string[] {
-  const { base, byCategory, blocklist } = config.hashtags;
+/**
+ * Pulisce, deduplica e limita gli hashtag combinando quelli generati con
+ * quelli di config. I tag "trailing" (community mulebuy) chiudono sempre la
+ * lista e hanno spazio riservato dentro il limite massimo.
+ */
+export function buildHashtags(generated: string[], product: Product, config: AppConfig): string[] {
+  const { base, trailing, byCategory, blocklist } = config.hashtags;
   const { min, max } = config.settings.content.hashtags;
   const blocked = new Set(blocklist.map((t) => slug(t)));
+
+  const normalize = (raw: string): string =>
+    slug(raw).replace(/^#/, "").replace(/[^a-z0-9]/g, "");
+
+  const seen = new Set<string>();
+  const pick = (source: string[], limit: number): string[] => {
+    const out: string[] = [];
+    for (const raw of source) {
+      const tag = normalize(raw);
+      if (!tag || tag.length < 2 || blocked.has(tag) || seen.has(tag)) continue;
+      seen.add(tag);
+      out.push(`#${tag}`);
+      if (out.length >= limit) break;
+    }
+    return out;
+  };
 
   const categoryTags = byCategory[product.category] ?? byCategory.default ?? [];
   const brandTag = slug(product.brand).replace(/[^a-z0-9]/g, "");
 
-  const ordered = [
-    ...base,
-    brandTag,
-    ...categoryTags,
-    ...generated,
-  ];
+  // I trailing hanno posti riservati: il resto riempie lo spazio rimanente.
+  const trailingTags = pick(trailing ?? [], max);
+  const mainTags = pick([...base, brandTag, ...categoryTags, ...generated], max - trailingTags.length);
 
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const raw of ordered) {
-    const tag = slug(raw).replace(/^#/, "").replace(/[^a-z0-9]/g, "");
-    if (!tag || tag.length < 2 || blocked.has(tag) || seen.has(tag)) continue;
-    seen.add(tag);
-    result.push(`#${tag}`);
-    if (result.length >= max) break;
-  }
-
+  const result = [...mainTags, ...trailingTags];
   if (result.length < min) {
     logger.warn(`Solo ${result.length} hashtag generati (minimo consigliato ${min}).`);
   }

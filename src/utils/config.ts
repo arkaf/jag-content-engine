@@ -51,6 +51,8 @@ export interface PromptsConfig {
 
 export interface HashtagsConfig {
   base: string[];
+  /** Hashtag della community (es. mulebuy) aggiunti sempre in coda. */
+  trailing: string[];
   byCategory: Record<string, string[]>;
   blocklist: string[];
 }
