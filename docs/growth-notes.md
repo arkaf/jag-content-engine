@@ -6,6 +6,14 @@ cadenza, formati).
 
 ## Caso reale #1 — Soppressione promo su TikTok
 
+**Domanda originale (situazione)**: un account creator con ~2K follower pubblicava
+quasi un video promozionale con voice-over al giorno. View medie ~2K–6K a video.
+In totale ha generato quasi **200 registrazioni e 16 ordini**. Dopo ~1 mese e mezzo
+con questa frequenza, le view sono crollate di colpo a **300–400 a video**. Il
+creator ha quindi smesso di postare sull'account principale e ne ha aperto uno
+nuovo (~100 follower), pubblicando ~ogni 2 giorni: performance mediocre e
+conversioni **meno della metà** di prima. Domanda: come gestire la situazione?
+
 **Contesto**: account TikTok, ~2K follower, storico provato (200 registrazioni /
 16 ordini). Dopo ~1 mese e mezzo di **video 100% promozionali ogni giorno** (stesso
 stile di voiceover, menzioni dell'agent, stessi hashtag) la reach è crollata a un
