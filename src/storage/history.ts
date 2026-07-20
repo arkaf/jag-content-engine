@@ -52,6 +52,11 @@ export class History {
     return new Set(this.data.published.map((r) => normalizeName(r.name)));
   }
 
+  /** Tutti i record pubblicati. */
+  all(): HistoryRecord[] {
+    return this.data.published;
+  }
+
   /** Ultimi N record pubblicati, dal più recente. */
   recent(n: number): HistoryRecord[] {
     return [...this.data.published]

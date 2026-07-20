@@ -43,6 +43,14 @@
     "extractFromProductLink": true,
     "cdnHosts": ["alicdn.com", "supabase.co", "mulebuy.com", "img.alicdn.com", "gw.alicdn.com"]
   },
+  "schedule": {
+    "timezone": "America/New_York",
+    "slots": [
+      { "key": "morning", "startHour": 8, "endHour": 11 },
+      { "key": "noon", "startHour": 12, "endHour": 15 },
+      { "key": "evening", "startHour": 18, "endHour": 22 }
+    ]
+  },
   "zernio": {
     "baseUrl": "https://zernio.com/api/v1",
     "platform": "instagram",

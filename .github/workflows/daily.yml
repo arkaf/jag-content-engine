@@ -2,17 +2,18 @@ name: Daily Content Publish
 
 on:
   schedule:
-    # GitHub Actions usa SEMPRE UTC e non gestisce l'ora legale.
-    # Pubblichiamo 3 volte al giorno nei picchi di engagement USA:
-    # 9:00, 12:00 e 19:00 America/New_York. Per ogni orario lanciamo a
-    # entrambe le ore UTC possibili (EDT = UTC-4, EST = UTC-5) e lo step
-    # "guard" fa proseguire solo quando a New York e' l'ora giusta.
-    - cron: "0 13 * * *" # 9:00 NY in ora legale (EDT)
-    - cron: "0 14 * * *" # 9:00 NY in ora solare (EST)
-    - cron: "0 16 * * *" # 12:00 NY in ora legale (EDT)
-    - cron: "0 17 * * *" # 12:00 NY in ora solare (EST)
-    - cron: "0 23 * * *" # 19:00 NY in ora legale (EDT)
-    - cron: "0 0 * * *"  # 19:00 NY in ora solare (EST)
+    # GitHub Actions usa UTC e fa partire i cron spesso in ritardo (anche 1-2h).
+    # Per questo NON ci affidiamo all'ora esatta: il motore decide in base a
+    # FINESTRE orarie (America/New_York) con idempotenza (1 post per slot al
+    # giorno). Qui lanciamo vicino all'INIZIO di ogni finestra, in entrambi gli
+    # offset EDT (UTC-4) ed EST (UTC-5), così un eventuale ritardo cade comunque
+    # dentro la finestra.
+    - cron: "0 12 * * *" # ~inizio finestra mattina (08:00 NY, EDT)
+    - cron: "0 13 * * *" # ~inizio finestra mattina (08:00 NY, EST)
+    - cron: "0 16 * * *" # ~inizio finestra pranzo (12:00 NY, EDT)
+    - cron: "0 17 * * *" # ~inizio finestra pranzo (12:00 NY, EST)
+    - cron: "0 22 * * *" # ~inizio finestra sera (18:00 NY, EDT)
+    - cron: "0 23 * * *" # ~inizio finestra sera (18:00 NY, EST)
   workflow_dispatch:
     inputs:
       dry_run:
@@ -51,35 +52,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Sulle esecuzioni schedulate procede solo negli orari di punta di
-      # New York (9:00, 12:00, 19:00). Sulle esecuzioni manuali
-      # (workflow_dispatch) non gira e non blocca nulla.
-      - name: Guard orari di punta America/New_York
-        if: ${{ github.event_name == 'schedule' }}
-        run: |
-          HOUR=$(TZ=America/New_York date +%H)
-          echo "Ora attuale a New York: ${HOUR}:00"
-          case "$HOUR" in
-            09|12|19)
-              echo "Orario di punta: procedo con la pubblicazione." ;;
-            *)
-              echo "Non e' un orario di punta a New York: salto questa esecuzione."
-              echo "SKIP=true" >> "$GITHUB_ENV" ;;
-          esac
-
       - name: Setup Node.js
-        if: ${{ env.SKIP != 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
 
       - name: Install dependencies
-        if: ${{ env.SKIP != 'true' }}
         run: npm ci
 
+      # Il motore decide da solo se pubblicare: sui run schedulati applica il
+      # gating per slot/finestra (America/New_York) con idempotenza; sui run
+      # manuali pubblica sempre. RUN_MODE distingue i due casi.
       - name: Run content engine
-        if: ${{ env.SKIP != 'true' }}
         env:
           GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
           GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
@@ -91,11 +76,12 @@ jobs:
           DRY_RUN: ${{ inputs.dry_run || 'false' }}
           FORCE_PRODUCT: ${{ inputs.product }}
           FORCE_FORMAT: ${{ inputs.format }}
+          RUN_MODE: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
           LOG_LEVEL: info
         run: npm start
 
       - name: Commit updated history
-        if: ${{ env.SKIP != 'true' && inputs.dry_run != true }}
+        if: ${{ inputs.dry_run != true }}
         run: |
           if [[ -z "$(git status --porcelain data/history.json)" ]]; then
             echo "Nessuna modifica allo storico da committare."

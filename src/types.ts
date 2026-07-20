@@ -55,6 +55,8 @@ export interface HistoryRecord {
   price: number | null;
   platform: string;
   format: string;
+  /** Slot di pubblicazione ("morning"/"noon"/"evening") o "manual". */
+  slot?: string;
   imagesCount: number;
   permalink: string;
   postId: string | null;

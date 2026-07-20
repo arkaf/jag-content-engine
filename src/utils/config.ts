@@ -29,6 +29,10 @@ export interface Settings {
     hashtags: { min: number; max: number };
   };
   images: { maxPerPost: number; extractFromProductLink: boolean; cdnHosts: string[] };
+  schedule: {
+    timezone: string;
+    slots: { key: string; startHour: number; endHour: number }[];
+  };
   zernio: { baseUrl: string; platform: string; mediaType: string };
   pinterest: {
     enabled: boolean;

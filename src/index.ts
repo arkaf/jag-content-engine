@@ -12,6 +12,7 @@ import { extractProductId, slug } from "./utils/normalize.js";
 import { readCatalog } from "./google/sheet.js";
 import { History } from "./storage/history.js";
 import { selectFormat } from "./content/format-selector.js";
+import { currentSlot, alreadyPostedInSlot } from "./content/schedule.js";
 import { selectProducts } from "./ai/product-selector.js";
 import { generateContent, composeCaption } from "./ai/content-generator.js";
 import { resolveProductImages } from "./media/product-images.js";
@@ -55,12 +56,30 @@ async function main(): Promise<void> {
 
   assertEnv(dryRun);
   const config = loadConfig();
+  const history = History.load();
 
-  // 1. Catalogo + storico
-  const [products, history] = await Promise.all([
-    readCatalog(config),
-    Promise.resolve(History.load()),
-  ]);
+  // 0. Gating per slot (solo sui run schedulati): robusto ai ritardi dei cron
+  //    di GitHub. Un post per slot al giorno; i run manuali ignorano il gating.
+  //    Si decide PRIMA di leggere il catalogo/chiamare OpenAI, per non sprecare
+  //    risorse sui run da saltare.
+  const runMode = (process.env.RUN_MODE ?? "manual").toLowerCase();
+  let slotKey = "manual";
+  if (runMode === "scheduled") {
+    const { date, hour, slot } = currentSlot(config);
+    if (!slot) {
+      logger.info(`Ora NY ${hour}:00 fuori dalle finestre di pubblicazione: salto.`);
+      return;
+    }
+    if (alreadyPostedInSlot(history, date, slot, config)) {
+      logger.info(`Slot "${slot}" del ${date} già pubblicato: salto (evito il doppione).`);
+      return;
+    }
+    slotKey = slot;
+    logger.info(`Slot di pubblicazione: "${slot}" (${date}, ora NY ${hour}:00).`);
+  }
+
+  // 1. Catalogo
+  const products = await readCatalog(config);
   if (products.length === 0) throw new Error("Catalogo vuoto: nessun prodotto da pubblicare.");
 
   // 2. Formato editoriale del giorno (rotazione, o forzato da input manuale)
@@ -224,6 +243,7 @@ async function main(): Promise<void> {
     price: chosen.price,
     platform: publishedPlatforms.join(","),
     format: format.key,
+    slot: slotKey,
     imagesCount: publishedCount,
     permalink: result.permalink,
     postId: result.postId,

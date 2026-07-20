@@ -5,6 +5,7 @@ import { imageUrlQuality } from "../src/utils/image.js";
 import { selectProducts } from "../src/ai/product-selector.js";
 import { composeCaption, buildHashtags } from "../src/ai/content-generator.js";
 import { selectFormat } from "../src/content/format-selector.js";
+import { currentSlot, localDateHour, alreadyPostedInSlot } from "../src/content/schedule.js";
 import { History } from "../src/storage/history.js";
 import type { Product } from "../src/types.js";
 
@@ -63,6 +64,18 @@ const maxTags = config.settings.content.hashtags.max;
 check("hashtags within max", tags.length <= maxTags, tags.length);
 check("hashtags end with mulebuy tags", tags[tags.length - 6] === "#mulebuy" && tags[tags.length - 1] === "#taobao", tags.slice(-6).join(" "));
 check("no duplicates", new Set(tags).size === tags.length);
+
+// --- schedule slots (America/New_York, EDT = UTC-4 in luglio) ---
+check("localDateHour NY from UTC", (() => {
+  const { date, hour } = localDateHour(new Date("2026-07-18T16:30:00Z"), "America/New_York");
+  return date === "2026-07-18" && hour === 12;
+})());
+check("slot morning (09 NY)", currentSlot(config, new Date("2026-07-18T13:30:00Z")).slot === "morning");
+check("slot noon (12 NY)", currentSlot(config, new Date("2026-07-18T16:05:00Z")).slot === "noon");
+check("slot noon absorbs delay (13 NY)", currentSlot(config, new Date("2026-07-18T17:30:00Z")).slot === "noon");
+check("slot evening (20 NY)", currentSlot(config, new Date("2026-07-19T00:30:00Z")).slot === "evening");
+check("slot none (16 NY)", currentSlot(config, new Date("2026-07-18T20:00:00Z")).slot === null);
+check("legacy history does not block slots", alreadyPostedInSlot(history, "2026-07-18", "noon", config) === false);
 
 console.log(`\n${failures === 0 ? "ALL PASS" : failures + " FAILURES"}`);
 process.exit(failures === 0 ? 0 : 1);
