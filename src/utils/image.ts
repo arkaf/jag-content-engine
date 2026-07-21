@@ -36,24 +36,56 @@ function deriveFilename(url: string, contentType: string): string {
  * - dimensione oltre il limite -> ridimensiona e ricomprime in JPEG
  * Le trasparenze vengono appiattite su sfondo bianco (JPEG non ha alpha).
  */
+// Range di aspect ratio accettato da Instagram feed: 0.75 (4:5 verticale) – 1.91
+// (landscape). Usiamo margini interni sicuri per stare lontani dai limiti.
+const SAFE_MIN_RATIO = 0.8; // 4:5
+const SAFE_MAX_RATIO = 1.9;
+const MAX_DIMENSION = 1440; // lato massimo dell'immagine finale
+
 export async function normalizeForInstagram(
   buffer: Buffer,
   contentType: string,
   filename: string,
 ): Promise<{ buffer: Buffer; contentType: string; filename: string }> {
+  const meta = await sharp(buffer, { failOn: "none" }).rotate().metadata();
+  const width = meta.width ?? 0;
+  const height = meta.height ?? 0;
+  const ratio = width > 0 && height > 0 ? width / height : 1;
+
   const needsConversion = !INSTAGRAM_FORMATS.has(contentType);
   const tooBig = buffer.byteLength > MAX_BYTES;
-  if (!needsConversion && !tooBig) return { buffer, contentType, filename };
+  const outOfRatio = width > 0 && height > 0 && (ratio < SAFE_MIN_RATIO || ratio > SAFE_MAX_RATIO);
+
+  if (!needsConversion && !tooBig && !outOfRatio) return { buffer, contentType, filename };
 
   logger.info(
-    `Normalizzo immagine per Instagram (${contentType}, ${(buffer.byteLength / 1024).toFixed(0)}KB)` +
-      `${needsConversion ? " [conversione formato]" : ""}${tooBig ? " [riduzione peso]" : ""}`,
+    `Normalizzo immagine per Instagram (${contentType}, ${width}x${height}, ` +
+      `${(buffer.byteLength / 1024).toFixed(0)}KB)` +
+      `${needsConversion ? " [formato]" : ""}${outOfRatio ? " [proporzioni]" : ""}${tooBig ? " [peso]" : ""}`,
   );
 
-  let pipeline = sharp(buffer).rotate().flatten({ background: "#ffffff" });
-  if (tooBig) {
-    pipeline = pipeline.resize({ width: 1920, height: 1920, fit: "inside", withoutEnlargement: true });
+  let pipeline = sharp(buffer, { failOn: "none" }).rotate().flatten({ background: "#ffffff" });
+
+  if (outOfRatio) {
+    // Impagina il prodotto (senza tagliarlo) su una tela bianca dal rapporto
+    // sicuro più vicino a quello originale.
+    let canvasW = width;
+    let canvasH = height;
+    if (ratio < SAFE_MIN_RATIO) canvasW = Math.round(height * SAFE_MIN_RATIO);
+    else canvasH = Math.round(width / SAFE_MAX_RATIO);
+    const scale = Math.min(1, MAX_DIMENSION / Math.max(canvasW, canvasH));
+    canvasW = Math.round(canvasW * scale);
+    canvasH = Math.round(canvasH * scale);
+    pipeline = pipeline.resize(canvasW, canvasH, { fit: "contain", background: "#ffffff" });
+  } else if (tooBig) {
+    pipeline = pipeline.resize({
+      width: MAX_DIMENSION,
+      height: MAX_DIMENSION,
+      fit: "inside",
+      withoutEnlargement: true,
+    });
   }
+
   const converted = await pipeline.jpeg({ quality: 88, mozjpeg: true }).toBuffer();
 
   if (converted.byteLength > MAX_BYTES) {

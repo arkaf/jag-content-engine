@@ -1,19 +1,33 @@
 import sharp from "sharp";
 import { normalizeForInstagram } from "../src/utils/image.js";
 
-// webp con trasparenza (come le foto removebg del catalogo)
-const webp = await sharp({
-  create: { width: 800, height: 1000, channels: 4, background: { r: 20, g: 20, b: 20, alpha: 0.5 } },
-}).webp().toBuffer();
-
-const out = await normalizeForInstagram(webp, "image/webp", "1763577243640-preview.webp");
-const meta = await sharp(out.buffer).metadata();
-console.log("format:", meta.format, "| size:", out.buffer.byteLength, "| contentType:", out.contentType, "| filename:", out.filename);
-if (meta.format !== "jpeg" || out.contentType !== "image/jpeg" || !out.filename.endsWith(".jpg")) {
-  console.log("FAIL"); process.exit(1);
+let fail = 0;
+async function ratioOf(buf: Buffer): Promise<number> {
+  const m = await sharp(buf).metadata();
+  return (m.width ?? 0) / (m.height ?? 1);
 }
-// jpg già valido: deve restare intatto
-const jpg = await sharp({ create: { width: 100, height: 100, channels: 3, background: "#333" } }).jpeg().toBuffer();
-const untouched = await normalizeForInstagram(jpg, "image/jpeg", "x.jpg");
-console.log("jpeg passthrough:", untouched.buffer === jpg ? "OK" : "FAIL");
-console.log("ALL PASS");
+function check(label: string, cond: boolean, extra?: unknown) {
+  console.log(`${cond ? "PASS" : "FAIL"}  ${label}`, extra ?? "");
+  if (!cond) fail++;
+}
+
+// Caso reale fallito: 432x577 webp trasparente -> 0.749 (sotto il minimo IG)
+const tall = await sharp({ create: { width: 432, height: 577, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0.4 } } }).webp().toBuffer();
+const outTall = await normalizeForInstagram(tall, "image/webp", "x.webp");
+const rTall = await ratioOf(outTall.buffer);
+check("tall image padded into IG range", rTall >= 0.75 && rTall <= 1.91, rTall.toFixed(3));
+check("tall output is jpeg", outTall.contentType === "image/jpeg");
+
+// Caso troppo largo: 2000x600 -> 3.33 (sopra il massimo IG)
+const wide = await sharp({ create: { width: 2000, height: 600, channels: 3, background: "#222" } }).png().toBuffer();
+const outWide = await normalizeForInstagram(wide, "image/png", "w.png");
+const rWide = await ratioOf(outWide.buffer);
+check("wide image padded into IG range", rWide >= 0.75 && rWide <= 1.91, rWide.toFixed(3));
+
+// Caso già valido (1080x1080 jpeg): resta intatto
+const square = await sharp({ create: { width: 1080, height: 1080, channels: 3, background: "#eee" } }).jpeg().toBuffer();
+const outSquare = await normalizeForInstagram(square, "image/jpeg", "s.jpg");
+check("valid square passes through untouched", outSquare.buffer === square);
+
+console.log(`\n${fail === 0 ? "ALL PASS" : fail + " FAILURES"}`);
+process.exit(fail === 0 ? 0 : 1);
