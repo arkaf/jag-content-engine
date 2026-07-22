@@ -27,8 +27,16 @@ function truncate(value: string, max: number): string {
   return v.length <= max ? v : v.slice(0, max - 1).trimEnd() + "…";
 }
 
+// Ancore verticali fisse (px) per un layout coerente su tutte le Story.
+const IMAGE_TOP = 230; // sotto l'header IG (username/tempo)
+const IMAGE_BOTTOM = 1360; // l'immagine occupa questa fascia superiore
+const TITLE_Y = 1460; // titolo TRA immagine e CTA
+const PILL_Y = 1540; // riquadro "LINK IN BIO"
+const PILL_H = 104;
+const SUBTEXT_Y = 1740;
+
 function buildOverlaySvg(product: Product, config: AppConfig): Buffer {
-  const name = escapeXml(truncate(`${product.name}`, 42));
+  const name = escapeXml(truncate(`${product.name}`, 40));
   const cta = escapeXml(config.settings.story.text);
   const sub = escapeXml(config.settings.story.subtext);
   const svg = `
@@ -38,11 +46,10 @@ function buildOverlaySvg(product: Product, config: AppConfig): Buffer {
     .cta  { font-family: 'DejaVu Sans', Arial, sans-serif; font-weight: 700; fill: #ffffff; letter-spacing: 4px; }
     .sub  { font-family: 'DejaVu Sans', Arial, sans-serif; font-weight: 400; fill: #777777; letter-spacing: 1px; }
   </style>
-  <text x="540" y="150" text-anchor="middle" class="name" font-size="40">${name}</text>
-  <polygon points="540,1548 496,1592 584,1592" fill="#111111"/>
-  <rect x="315" y="1612" width="450" height="100" rx="50" fill="#111111"/>
-  <text x="540" y="1676" text-anchor="middle" class="cta" font-size="40">${cta}</text>
-  <text x="540" y="1770" text-anchor="middle" class="sub" font-size="30">${sub}</text>
+  <text x="540" y="${TITLE_Y}" text-anchor="middle" class="name" font-size="42">${name}</text>
+  <rect x="315" y="${PILL_Y}" width="450" height="${PILL_H}" rx="${PILL_H / 2}" fill="#111111"/>
+  <text x="540" y="${PILL_Y + PILL_H / 2 + 15}" text-anchor="middle" class="cta" font-size="40">${cta}</text>
+  <text x="540" y="${SUBTEXT_Y}" text-anchor="middle" class="sub" font-size="30">${sub}</text>
 </svg>`;
   return Buffer.from(svg);
 }
@@ -53,16 +60,17 @@ export async function buildStoryImage(
   product: Product,
   config: AppConfig,
 ): Promise<DownloadedImage> {
-  // Prodotto ridimensionato per lasciare spazio a titolo (alto) e CTA (basso).
+  // Prodotto grande, centrato nella fascia superiore [IMAGE_TOP, IMAGE_BOTTOM].
+  const regionH = IMAGE_BOTTOM - IMAGE_TOP;
   const productImg = await sharp(source)
     .rotate()
-    .resize(940, 1180, { fit: "inside", withoutEnlargement: true })
+    .resize(1000, regionH, { fit: "inside", withoutEnlargement: true })
     .toBuffer();
   const meta = await sharp(productImg).metadata();
   const pw = meta.width ?? 0;
   const ph = meta.height ?? 0;
   const left = Math.round((WIDTH - pw) / 2);
-  const top = Math.max(220, Math.round((HEIGHT - ph) / 2) - 90);
+  const top = IMAGE_TOP + Math.round((regionH - ph) / 2);
 
   const buffer = await sharp({
     create: { width: WIDTH, height: HEIGHT, channels: 4, background: config.settings.story.background },
