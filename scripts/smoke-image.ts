@@ -29,5 +29,16 @@ const square = await sharp({ create: { width: 1080, height: 1080, channels: 3, b
 const outSquare = await normalizeForInstagram(square, "image/jpeg", "s.jpg");
 check("valid square passes through untouched", outSquare.buffer === square);
 
+// --- story image 9:16 ---
+{
+  const { loadConfig } = await import("../src/utils/config.js");
+  const { buildStoryImage } = await import("../src/media/story.js");
+  const cfg = loadConfig();
+  const prod = await sharp({ create: { width: 900, height: 1000, channels: 3, background: "#ccc" } }).jpeg().toBuffer();
+  const story = await buildStoryImage(prod, { id: "x1", name: "Grailz Project G/R Very Long Product Name That Should Truncate Nicely", link: "l", imageUrl: "i", price: 100, priceRaw: "100", category: "hoodie", brand: "Grailz", row: 2 } as any, cfg);
+  const m = await sharp(story.buffer).metadata();
+  check(`story is 1080x1920 jpeg`, m.width === 1080 && m.height === 1920 && story.contentType === "image/jpeg", `${m.width}x${m.height}`);
+}
+
 console.log(`\n${fail === 0 ? "ALL PASS" : fail + " FAILURES"}`);
 process.exit(fail === 0 ? 0 : 1);

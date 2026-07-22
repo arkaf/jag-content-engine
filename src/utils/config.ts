@@ -29,6 +29,7 @@ export interface Settings {
     hashtags: { min: number; max: number };
   };
   images: { maxPerPost: number; extractFromProductLink: boolean; cdnHosts: string[] };
+  story: { enabled: boolean; background: string; text: string; subtext: string };
   schedule: {
     timezone: string;
     slots: { key: string; startHour: number; endHour: number }[];

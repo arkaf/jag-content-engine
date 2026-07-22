@@ -16,6 +16,7 @@ import { currentSlot, alreadyPostedInSlot } from "./content/schedule.js";
 import { selectProducts } from "./ai/product-selector.js";
 import { generateContent, composeCaption } from "./ai/content-generator.js";
 import { resolveProductImages } from "./media/product-images.js";
+import { buildStoryImage } from "./media/story.js";
 import { downloadImage } from "./utils/image.js";
 import { ZernioClient } from "./social/zernio.js";
 import type { DownloadedImage, Product, ScoredProduct } from "./types.js";
@@ -185,6 +186,27 @@ async function main(): Promise<void> {
     }
   }
   const publishedPlatforms = [igPlatform];
+
+  // 7a. Instagram Story: ogni post feed genera anche una Story con la stessa
+  //     immagine e il richiamo "LINK IN BIO" stampato (best-effort).
+  if (config.settings.story.enabled) {
+    try {
+      const storyImage = await buildStoryImage(images[0].buffer, chosen, config);
+      const storyUrl = await zernio.uploadMedia(storyImage);
+      await zernio.publishPost({
+        caption: "",
+        mediaUrls: [storyUrl],
+        platform: igPlatform,
+        accountId,
+        platformSpecificData: { contentType: "story" },
+        config,
+      });
+      publishedPlatforms.push("instagram_story");
+      logger.info("Story Instagram pubblicata (richiamo 'link in bio').");
+    } catch (err) {
+      logger.warn(`Pubblicazione Story Instagram fallita (post feed gia' uscito): ${(err as Error).message}`);
+    }
+  }
 
   // 7b. Pinterest (best-effort): pin con titolo/descrizione dedicati e link
   //     diretto al prodotto. Un errore qui non blocca la pubblicazione IG.
