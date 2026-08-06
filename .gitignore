@@ -12,3 +12,6 @@ google-credentials*.json
 # Immagini scaricate temporaneamente durante l'esecuzione
 tmp/
 .cache/
+
+# Lo storico vive sul branch dedicato "data", non su main
+data/history.json

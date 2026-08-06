@@ -61,6 +61,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Lo storico vive sul branch dedicato "data" (solo dati, nessun codice):
+      # cosi' il bot non committa mai su main e i branch non divergono.
+      - name: Load publication history
+        run: |
+          mkdir -p data
+          if git ls-remote --exit-code --heads origin data >/dev/null 2>&1; then
+            git fetch origin data
+            # Se il file non fosse leggibile il job fallisce (set -e): meglio
+            # fermarsi che pubblicare con uno storico vuoto e fare doppioni.
+            git show FETCH_HEAD:history.json > data/history.json
+            echo "Storico caricato dal branch data ($(grep -c '"id"' data/history.json) pubblicazioni)."
+          else
+            echo "::warning::Branch 'data' assente: parto con storico vuoto (primo avvio)."
+            echo '{"version":1,"published":[]}' > data/history.json
+          fi
+
       # Il motore decide da solo se pubblicare: sui run schedulati applica il
       # gating per slot/finestra (America/New_York) con idempotenza; sui run
       # manuali pubblica sempre. RUN_MODE distingue i due casi.
@@ -80,27 +96,33 @@ jobs:
           LOG_LEVEL: info
         run: npm start
 
-      - name: Commit updated history
+      # Salva lo storico sul branch "data" costruendo il commit con i comandi
+      # di basso livello: non tocca la working tree e non serve un checkout
+      # separato. In caso di corsa con un altro run, rifa' il commit sul nuovo
+      # tip e riprova.
+      - name: Save publication history
         if: ${{ inputs.dry_run != true }}
+        env:
+          GIT_AUTHOR_NAME: jag-content-bot
+          GIT_AUTHOR_EMAIL: actions@github.com
+          GIT_COMMITTER_NAME: jag-content-bot
+          GIT_COMMITTER_EMAIL: actions@github.com
         run: |
-          if [[ -z "$(git status --porcelain data/history.json)" ]]; then
-            echo "Nessuna modifica allo storico da committare."
-            exit 0
-          fi
-          git config user.name "jag-content-bot"
-          git config user.email "actions@github.com"
-          branch="${GITHUB_REF_NAME}"
-          git add data/history.json
-          git commit -m "chore: update publication history [skip ci]"
-          # Push resiliente: se il branch remoto è avanzato, riallinea e riprova.
           for attempt in 1 2 3 4 5; do
-            if git push origin "HEAD:${branch}"; then
-              echo "Storico aggiornato (tentativo ${attempt})."
+            git fetch origin data
+            parent=$(git rev-parse FETCH_HEAD)
+            if [[ "$(git show "${parent}:history.json" 2>/dev/null)" == "$(cat data/history.json)" ]]; then
+              echo "Nessuna modifica allo storico da salvare."
               exit 0
             fi
-            echo "Push respinto: riallineo a origin/${branch} e riprovo..."
-            git fetch origin "${branch}"
-            git rebase "origin/${branch}" || git rebase --abort
+            blob=$(git hash-object -w data/history.json)
+            tree=$(printf '100644 blob %s\thistory.json\n' "$blob" | git mktree)
+            commit=$(git commit-tree "$tree" -p "$parent" -m "chore: update publication history")
+            if git push origin "${commit}:refs/heads/data"; then
+              echo "Storico aggiornato sul branch data (tentativo ${attempt})."
+              exit 0
+            fi
+            echo "Push respinto (un altro run ha scritto prima): riprovo..."
             sleep 2
           done
           echo "::error::Impossibile salvare lo storico dopo diversi tentativi."
