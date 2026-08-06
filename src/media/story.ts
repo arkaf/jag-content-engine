@@ -28,8 +28,10 @@ function truncate(value: string, max: number): string {
 }
 
 // Ancore verticali fisse (px) per un layout coerente su tutte le Story.
-const IMAGE_TOP = 230; // sotto l'header IG (username/tempo)
-const IMAGE_BOTTOM = 1360; // l'immagine occupa questa fascia superiore
+const IMAGE_TOP = 210; // sotto l'header IG (username/tempo)
+const IMAGE_BOTTOM = 1370; // l'immagine occupa questa fascia superiore
+const IMAGE_REGION_W = 1010; // larghezza utile per il prodotto
+const MAX_UPSCALE = 4; // ingrandimento massimo dalle foto piccole del catalogo
 const TITLE_Y = 1460; // titolo TRA immagine e CTA
 const PILL_Y = 1540; // riquadro "LINK IN BIO"
 const PILL_H = 104;
@@ -61,10 +63,22 @@ export async function buildStoryImage(
   config: AppConfig,
 ): Promise<DownloadedImage> {
   // Prodotto grande, centrato nella fascia superiore [IMAGE_TOP, IMAGE_BOTTOM].
+  // Le foto del catalogo sono spesso piccole (400-800px): vanno INGRANDITE per
+  // riempire la fascia, altrimenti restano minuscole al centro della Story.
+  // Il fattore di ingrandimento è limitato per non degradare troppo la qualità.
   const regionH = IMAGE_BOTTOM - IMAGE_TOP;
-  const productImg = await sharp(source)
-    .rotate()
-    .resize(1000, regionH, { fit: "inside", withoutEnlargement: true })
+  const src = await sharp(source).rotate().toBuffer();
+  const srcMeta = await sharp(src).metadata();
+  const sw = srcMeta.width ?? IMAGE_REGION_W;
+  const sh = srcMeta.height ?? regionH;
+  const fitScale = Math.min(IMAGE_REGION_W / sw, regionH / sh);
+  const scale = Math.min(fitScale, MAX_UPSCALE);
+
+  const productImg = await sharp(src)
+    .resize(Math.round(sw * scale), Math.round(sh * scale), {
+      fit: "inside",
+      kernel: "lanczos3",
+    })
     .toBuffer();
   const meta = await sharp(productImg).metadata();
   const pw = meta.width ?? 0;
