@@ -47,7 +47,13 @@ concurrency:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    # Immagine FISSATA invece di "ubuntu-latest": i run del 6 agosto sono
+    # rimasti in coda senza mai ricevere un runner (cancellati a 15 minuti).
+    # "latest" e una versione fissata attingono a pool diversi, quindi
+    # fissarla aggira i problemi di capacita' dell'immagine piu' recente.
+    runs-on: ubuntu-22.04
+    # Se un runner non arriva, meglio fallire presto che restare appesi.
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
