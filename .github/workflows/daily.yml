@@ -52,18 +52,40 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Filtro rapido PRIMA di installare le dipendenze: i cron sono doppi
+      # (EDT/EST) e molti run cadono fuori finestra. Uscire subito evita di
+      # consumare minuti Actions inutilmente. Le finestre sono lette da
+      # config/settings.json, unica fonte di verita' (il motore rifa' poi il
+      # controllo completo, idempotenza inclusa).
+      - name: Check publishing window
+        if: ${{ github.event_name == 'schedule' }}
+        run: |
+          tz=$(jq -r '.schedule.timezone' config/settings.json)
+          hour=$((10#$(TZ="$tz" date +%H)))
+          in_window=$(jq --argjson h "$hour" \
+            '[.schedule.slots[] | select($h >= .startHour and $h <= .endHour)] | length' \
+            config/settings.json)
+          echo "Ora in ${tz}: ${hour}:00 — finestre attive: ${in_window}"
+          if [ "$in_window" -eq 0 ]; then
+            echo "Fuori dalle finestre di pubblicazione: esco subito."
+            echo "SKIP=true" >> "$GITHUB_ENV"
+          fi
+
       - name: Setup Node.js
+        if: ${{ env.SKIP != 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
 
       - name: Install dependencies
+        if: ${{ env.SKIP != 'true' }}
         run: npm ci
 
       # Lo storico vive sul branch dedicato "data" (solo dati, nessun codice):
       # cosi' il bot non committa mai su main e i branch non divergono.
       - name: Load publication history
+        if: ${{ env.SKIP != 'true' }}
         run: |
           mkdir -p data
           if git ls-remote --exit-code --heads origin data >/dev/null 2>&1; then
@@ -81,6 +103,7 @@ jobs:
       # gating per slot/finestra (America/New_York) con idempotenza; sui run
       # manuali pubblica sempre. RUN_MODE distingue i due casi.
       - name: Run content engine
+        if: ${{ env.SKIP != 'true' }}
         env:
           GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
           GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
@@ -101,7 +124,7 @@ jobs:
       # separato. In caso di corsa con un altro run, rifa' il commit sul nuovo
       # tip e riprova.
       - name: Save publication history
-        if: ${{ inputs.dry_run != true }}
+        if: ${{ env.SKIP != 'true' && inputs.dry_run != true }}
         env:
           GIT_AUTHOR_NAME: jag-content-bot
           GIT_AUTHOR_EMAIL: actions@github.com
