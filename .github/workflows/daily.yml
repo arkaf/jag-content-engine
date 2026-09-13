@@ -1,19 +1,23 @@
 name: Daily Content Publish
 
 on:
-  schedule:
-    # GitHub Actions usa UTC e fa partire i cron spesso in ritardo (anche 1-2h).
-    # Per questo NON ci affidiamo all'ora esatta: il motore decide in base a
-    # FINESTRE orarie (America/New_York) con idempotenza (1 post per slot al
-    # giorno). Qui lanciamo vicino all'INIZIO di ogni finestra, in entrambi gli
-    # offset EDT (UTC-4) ed EST (UTC-5), così un eventuale ritardo cade comunque
-    # dentro la finestra.
-    - cron: "0 12 * * *" # ~inizio finestra mattina (08:00 NY, EDT)
-    - cron: "0 13 * * *" # ~inizio finestra mattina (08:00 NY, EST)
-    - cron: "0 16 * * *" # ~inizio finestra pranzo (12:00 NY, EDT)
-    - cron: "0 17 * * *" # ~inizio finestra pranzo (12:00 NY, EST)
-    - cron: "0 22 * * *" # ~inizio finestra sera (18:00 NY, EDT)
-    - cron: "0 23 * * *" # ~inizio finestra sera (18:00 NY, EST)
+  # ⏸️ PUBBLICAZIONI AUTOMATICHE IN PAUSA (richiesta del 2026-09-13).
+  # Per riattivarle basta togliere il commento al blocco "schedule" qui sotto.
+  # L'avvio manuale (workflow_dispatch) resta sempre disponibile.
+  #
+  # schedule:
+  #   # GitHub Actions usa UTC e fa partire i cron spesso in ritardo (anche 1-2h).
+  #   # Per questo NON ci affidiamo all'ora esatta: il motore decide in base a
+  #   # FINESTRE orarie (America/New_York) con idempotenza (1 post per slot al
+  #   # giorno). Qui lanciamo vicino all'INIZIO di ogni finestra, in entrambi gli
+  #   # offset EDT (UTC-4) ed EST (UTC-5), così un eventuale ritardo cade comunque
+  #   # dentro la finestra.
+  #   - cron: "0 12 * * *" # ~inizio finestra mattina (08:00 NY, EDT)
+  #   - cron: "0 13 * * *" # ~inizio finestra mattina (08:00 NY, EST)
+  #   - cron: "0 16 * * *" # ~inizio finestra pranzo (12:00 NY, EDT)
+  #   - cron: "0 17 * * *" # ~inizio finestra pranzo (12:00 NY, EST)
+  #   - cron: "0 22 * * *" # ~inizio finestra sera (18:00 NY, EDT)
+  #   - cron: "0 23 * * *" # ~inizio finestra sera (18:00 NY, EST)
   workflow_dispatch:
     inputs:
       dry_run:
